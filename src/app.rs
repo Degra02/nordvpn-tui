@@ -54,6 +54,8 @@ pub struct App {
     state: ListState,
 
     index: usize,
+    country_index: usize,
+    city_index: usize,
 
     exit: bool,
 }
@@ -85,6 +87,8 @@ impl App {
             connected: connection_status,
             search_string: String::default(),
             index: 0,
+            country_index: 0,
+            city_index: 0,
             input_mode: InputMode::default(),
             view_mode: View::default(),
             state,
@@ -103,7 +107,7 @@ impl App {
     fn set_cities(&mut self) -> Result<(), AppError> {
         let output = std::process::Command::new("nordvpn")
             .arg("cities")
-            .arg(&self.countries[self.index])
+            .arg(&self.countries[self.country_index])
             .output()?;
 
         self.cities = String::from_utf8(output.stdout)?
@@ -117,7 +121,7 @@ impl App {
     fn connect(&mut self) -> Result<View, AppError> {
         let output = std::process::Command::new("nordvpn")
             .arg("connect")
-            .arg(&self.cities[self.index])
+            .arg(&self.cities[self.city_index])
             .output()?;
 
         self.connected = output.status.success();
@@ -223,10 +227,22 @@ impl App {
             _ => Vec::new(),
         };
         for (i, country) in l.iter().enumerate() {
-            let style = if i == self.index {
-                Style::default().fg(Color::LightYellow)
-            } else {
-                Style::default().fg(Color::DarkGray)
+            let style = match self.view_mode {
+                View::Countries => {
+                    if i == self.country_index {
+                        Style::default().fg(Color::LightYellow)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    }
+                }
+                View::Cities => {
+                    if i == self.city_index {
+                        Style::default().fg(Color::LightYellow)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    }
+                }
+                _ => Style::default().fg(Color::DarkGray),
             };
             list.push(ListItem::new(
                 Line::from(Span::from(country.to_string()))
@@ -285,29 +301,32 @@ impl App {
                     View::Countries => {
                         self.state.select(Some(0));
                         self.set_cities()?;
-                        self.index = 0;
+                        self.city_index = 0;
                         View::Cities
                     }
                     View::Cities => self.connect()?,
                     View::Connection => {
-                        self.index = 0;
+                        self.country_index = 0;
+                        self.city_index = 0;
                         View::Countries
                     }
                 };
             }
-            event::KeyCode::Down | event::KeyCode::Char('j') => self.increment_counter(),
-            event::KeyCode::Up | event::KeyCode::Char('k') => self.decrement_counter(),
+            event::KeyCode::Down | event::KeyCode::Char('j') => self.increment_index(),
+            event::KeyCode::Up | event::KeyCode::Char('k') => self.decrement_index(),
             event::KeyCode::Char('/') | event::KeyCode::Char('i') => {
                 self.input_mode = InputMode::Search;
             }
             event::KeyCode::Char('h') => {
                 match self.view_mode {
                     View::Cities => {
-                        self.index = 0;
+                        self.set_cities()?;
+                        self.city_index = 0;
                         self.view_mode = View::Countries;
                     }
                     View::Connection => {
-                        self.index = 0;
+                        self.set_cities()?;
+                        self.city_index = 0;
                         self.view_mode = View::Cities;
                     }
                     _ => {}
@@ -324,9 +343,8 @@ impl App {
                 self.search_string.clear();
                 self.view_mode = match self.view_mode {
                     View::Countries => {
-                        self.state.select(Some(0));
                         self.set_cities()?;
-                        self.index = 0;
+                        self.state.select(Some(0));
                         View::Cities
                     }
                     View::Cities => self.connect()?,
@@ -352,17 +370,47 @@ impl App {
         Ok(())
     }
 
-    fn decrement_counter(&mut self) {
-        if self.index > 0 {
-            self.index -= 1;
+    fn decrement_country(&mut self) {
+        if self.country_index > 0 {
+            self.country_index -= 1;
         }
-        self.state.select(Some(self.index));
+        self.state.select(Some(self.country_index));
     }
 
-    fn increment_counter(&mut self) {
-        if self.index < self.countries.len() - 1 {
-            self.index += 1;
+    fn increment_country(&mut self) {
+        if self.country_index < self.countries.len() - 1 {
+            self.country_index += 1;
         }
-        self.state.select(Some(self.index));
+        self.state.select(Some(self.country_index));
+    }
+
+    fn decrement_city(&mut self) {
+        if self.city_index > 0 {
+            self.city_index -= 1;
+        }
+        self.state.select(Some(self.city_index));
+    }
+
+    fn increment_city(&mut self) {
+        if self.city_index < self.cities.len() - 1 {
+            self.city_index += 1;
+        }
+        self.state.select(Some(self.city_index));
+    }
+
+    fn decrement_index(&mut self) {
+        match self.view_mode {
+            View::Countries => self.decrement_country(),
+            View::Cities => self.decrement_city(),
+            _ => {}
+        }
+    }
+
+    fn increment_index(&mut self) {
+        match self.view_mode {
+            View::Countries => self.increment_country(),
+            View::Cities => self.increment_city(),
+            _ => {}
+        }
     }
 }
