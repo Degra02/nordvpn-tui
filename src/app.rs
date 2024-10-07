@@ -53,7 +53,8 @@ pub struct App {
     input_mode: InputMode,
     state: ListState,
 
-    index: usize,
+    awaiting_second_g: bool,
+
     country_index: usize,
     city_index: usize,
 
@@ -86,11 +87,11 @@ impl App {
             connection_output: String::new(),
             connected: connection_status,
             search_string: String::default(),
-            index: 0,
             country_index: 0,
             city_index: 0,
             input_mode: InputMode::default(),
             view_mode: View::default(),
+            awaiting_second_g: false,
             state,
             exit: false,
         })
@@ -101,6 +102,19 @@ impl App {
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
         }
+        Ok(())
+    }
+
+    fn set_countries(&mut self) -> Result<(), AppError> {
+        let output = std::process::Command::new("nordvpn")
+            .arg("countries")
+            .output()?;
+
+        self.countries = String::from_utf8(output.stdout)?
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+
         Ok(())
     }
 
@@ -308,30 +322,59 @@ impl App {
                     View::Connection => {
                         self.country_index = 0;
                         self.city_index = 0;
+                        self.set_countries()?;
                         View::Countries
                     }
                 };
             }
             event::KeyCode::Down | event::KeyCode::Char('j') => self.increment_index(),
             event::KeyCode::Up | event::KeyCode::Char('k') => self.decrement_index(),
+            event::KeyCode::Char('G') => match self.view_mode {
+                View::Countries => {
+                    self.country_index = self.countries.len() - 1;
+                    self.state.select(Some(self.country_index));
+                }
+                View::Cities => {
+                    self.city_index = self.cities.len() - 1;
+                    self.state.select(Some(self.city_index))
+                }
+                _ => {}
+            },
+            //TODO: fix `gg` keybind
+            event::KeyCode::Char('g') => {
+                if self.awaiting_second_g {
+                    match self.view_mode {
+                        View::Countries => {
+                            self.country_index = 0;
+                            self.state.select(Some(self.country_index));
+                        }
+                        View::Cities => {
+                            self.city_index = 0;
+                            self.state.select(Some(self.city_index));
+                        }
+                        _ => {}
+                    }
+                    self.awaiting_second_g = false;
+                } else {
+                    self.awaiting_second_g = true;
+                }
+            }
             event::KeyCode::Char('/') | event::KeyCode::Char('i') => {
                 self.input_mode = InputMode::Search;
             }
-            event::KeyCode::Char('h') => {
-                match self.view_mode {
-                    View::Cities => {
-                        self.set_cities()?;
-                        self.city_index = 0;
-                        self.view_mode = View::Countries;
-                    }
-                    View::Connection => {
-                        self.set_cities()?;
-                        self.city_index = 0;
-                        self.view_mode = View::Cities;
-                    }
-                    _ => {}
+            event::KeyCode::Char('h') => match self.view_mode {
+                View::Cities => {
+                    self.set_countries()?;
+                    self.city_index = 0;
+                    self.view_mode = View::Countries;
                 }
-            }
+                View::Connection => {
+                    self.set_cities()?;
+                    self.city_index = 0;
+                    self.view_mode = View::Cities;
+                }
+                _ => {}
+            },
             _ => {}
         }
         Ok(())
@@ -340,30 +383,49 @@ impl App {
     fn handle_search_mode(&mut self, event: KeyEvent) -> Result<(), AppError> {
         match event.code {
             event::KeyCode::Enter => {
-                self.search_string.clear();
+                self.input_mode = InputMode::Normal;
                 self.view_mode = match self.view_mode {
                     View::Countries => {
                         self.set_cities()?;
-                        self.state.select(Some(0));
+                        self.search_string.clear();
                         View::Cities
                     }
-                    View::Cities => self.connect()?,
+                    View::Cities => View::Cities, // self.connect()?,
                     View::Connection => {
-                        self.index = 0;
+                        self.country_index = 0;
                         View::Countries
                     }
-                }; 
+                };
             }
             event::KeyCode::Esc => {
                 self.input_mode = InputMode::Normal;
             }
             event::KeyCode::Char(c) => {
                 self.search_string.push(c);
-                self.index = 0;
+                match self.view_mode {
+                    View::Countries => {
+                        self.countries = self
+                            .countries
+                            .clone()
+                            .into_iter()
+                            .filter(|c| c.to_lowercase().contains(&self.search_string))
+                            .collect();
+                    }
+                    View::Cities => {
+                        self.cities = self
+                            .cities
+                            .clone()
+                            .into_iter()
+                            .filter(|c| c.to_lowercase().contains(&self.search_string))
+                            .collect();
+                    }
+                    View::Connection => {}
+                }
+                self.country_index = 0;
             }
             event::KeyCode::Backspace => {
                 self.search_string.pop();
-                self.index = 0;
+                self.country_index = 0;
             }
             _ => {}
         }
