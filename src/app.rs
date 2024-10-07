@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -22,6 +24,22 @@ enum Mode {
 }
 
 #[derive(Debug, Default)]
+enum InputMode {
+    #[default]
+    Normal,
+    Search,
+}
+
+impl Display for InputMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InputMode::Normal => write!(f, "Normal"),
+            InputMode::Search => write!(f, "Search"),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct App {
     countries: Vec<String>,
     cities: Vec<String>,
@@ -29,7 +47,10 @@ pub struct App {
     connection_output: String,
     connected: bool,
 
+    search_string: String,
+
     mode: Mode,
+    input_mode: InputMode,
     state: ListState,
 
     index: usize,
@@ -62,7 +83,9 @@ impl App {
             cities: Vec::new(),
             connection_output: String::new(),
             connected: connection_status,
+            search_string: String::default(),
             index: 0,
+            input_mode: InputMode::default(),
             mode: Mode::default(),
             state,
             exit: false,
@@ -98,7 +121,8 @@ impl App {
             .output()?;
 
         self.connected = output.status.success();
-        self.connection_output = String::from_utf8(output.stdout)?;
+        let command_output: Vec<String> = String::from_utf8(output.stdout)?.lines().map(|s| s.to_string()).collect();
+        self.connection_output = command_output.join("\n");
 
         if output.status.success() {
             Ok(Mode::Connection)
@@ -135,16 +159,32 @@ impl App {
 
         let title = Title::from(title_text);
 
-        let instructions = Title::from(Line::from(vec![
-            " Select ".bold(),
-            "<Enter>".into(),
-            " Down ".bold(),
-            "<Down>".into(),
-            " Up ".bold(),
-            "<Up>".into(),
-            " Quit ".bold(),
-            "<Esc>".into(),
-        ]));
+        let instructions = match self.input_mode {
+            InputMode::Normal => Title::from(Line::from(vec![
+                " Normal | ".bold(),
+                " Select ".bold(),
+                "<Enter>".into(),
+                " Down ".bold(),
+                "<J | Up>".into(),
+                " Up ".bold(),
+                "<K | Down>".into(),
+                " Quit ".bold(),
+                "<Q | Esc>".into(),
+            ])),
+            InputMode::Search => {
+                let search_text = format!(" Search: {} | ", self.search_string);
+                let instructions = vec![
+                    search_text.into(),
+                    " Type ".bold(),
+                    "<Esc>".into(),
+                    " to exit search mode ".bold(),
+                    " Type ".bold(),
+                    "<Backspace>".into(),
+                    " to delete ".bold(),
+                ];
+                Title::from(Line::from(instructions).style(Style::default().fg(Color::LightYellow)))
+            }
+        };
 
         let block = Block::bordered()
             .title(title.alignment(Alignment::Center))
@@ -165,8 +205,18 @@ impl App {
         let mut list = Vec::<ListItem>::new();
 
         let l = match self.mode {
-            Mode::Countries => self.countries.clone(),
-            Mode::Cities => self.cities.clone(),
+            Mode::Countries => self
+                .countries
+                .clone()
+                .into_iter()
+                .filter(|c| c.to_lowercase().contains(&self.search_string))
+                .collect(),
+            Mode::Cities => self
+                .cities
+                .clone()
+                .into_iter()
+                .filter(|c| c.to_lowercase().contains(&self.search_string))
+                .collect(),
             _ => Vec::new(),
         };
         for (i, country) in l.iter().enumerate() {
@@ -216,8 +266,16 @@ impl App {
     }
 
     fn handle_key_event(&mut self, event: KeyEvent) -> Result<(), AppError> {
+        match self.input_mode {
+            InputMode::Normal => self.handle_normal_mode(event)?,
+            InputMode::Search => self.handle_search_mode(event)?,
+        }
+        Ok(())
+    }
+
+    fn handle_normal_mode(&mut self, event: KeyEvent) -> Result<(), AppError> {
         match event.code {
-            event::KeyCode::Esc => self.exit = true,
+            event::KeyCode::Esc | event::KeyCode::Char('q') => self.exit = true,
             event::KeyCode::Enter => {
                 self.mode = match self.mode {
                     Mode::Countries => {
@@ -233,8 +291,29 @@ impl App {
                     }
                 };
             }
-            event::KeyCode::Down => self.increment_counter(),
-            event::KeyCode::Up => self.decrement_counter(),
+            event::KeyCode::Down | event::KeyCode::Char('j') => self.increment_counter(),
+            event::KeyCode::Up | event::KeyCode::Char('k') => self.decrement_counter(),
+            event::KeyCode::Char('/') | event::KeyCode::Char('i') => {
+                self.input_mode = InputMode::Search;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_search_mode(&mut self, event: KeyEvent) -> Result<(), AppError> {
+        match event.code {
+            event::KeyCode::Esc => {
+                self.input_mode = InputMode::Normal;
+            }
+            event::KeyCode::Char(c) => {
+                self.search_string.push(c);
+                self.index = 0;
+            }
+            event::KeyCode::Backspace => {
+                self.search_string.pop();
+                self.index = 0;
+            }
             _ => {}
         }
         Ok(())
