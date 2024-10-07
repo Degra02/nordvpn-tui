@@ -51,14 +51,26 @@ Once you start `nordvpn-tui`, you will be presented with a list of countries whe
 
 ### Keyboard Shortcuts
 
+In normal mode (default):
+
 | Key          | Action                                       |
 |----------------------|----------------------------------------------|
 | `K` or `Arrow Up`   | Move selection up                            |
 | `J` or `Arrow Down` | Move selection down                          |
 | `Enter`      | Select a country/city and connect to the VPN |
+| `i` or `/` | Enter Search mode                            |
 | `g g`        | Jump to the top of the list                  |
 | `G`          | Jump to the bottom of the list               |
 | `q`          | Quit the application                         |
+
+In search mode:
+
+| Key        | Action                                       |
+|------------|----------------------------------------------|
+| `<char>`     | Add char to search query |
+| `Enter`      | Search with current query |
+| `Backspace`  | Delete last query char |
+
 
 ## Example
 
@@ -79,8 +91,8 @@ Here is an example of the interface:
             Bahamas
             Bangladesh
             Belgium
-...
-Select <Enter> Down <Arrow-Down> Up <Arrow-Up> Quit <Q>
+---------------------------------------
+Normal | Select <Enter> Down <Arrow-Down> Up <Arrow-Up> Quit <Q>
 ```
 
 ### Connect to a VPN
