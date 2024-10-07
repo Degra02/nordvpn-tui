@@ -425,6 +425,7 @@ impl App {
             }
             event::KeyCode::Backspace => {
                 self.search_string.pop();
+                self.set_countries()?;
                 self.country_index = 0;
             }
             _ => {}
