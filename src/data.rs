@@ -14,6 +14,7 @@ impl std::fmt::Display for Country {
 }
 
 impl Country {
+    #[allow(dead_code)]
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -21,6 +22,7 @@ impl Country {
         }
     }
 
+    #[allow(dead_code)]
     pub fn add_cities(&mut self, cities: &[&str]) {
         for c in cities {
             self.cities.push(c.to_string());
