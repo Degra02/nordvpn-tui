@@ -208,7 +208,8 @@ impl App {
                     "<K | Up>".into(),
                     " Quit ".bold(),
                     "<Q | Esc>".into(),
-                    " Disconnect <D> ".into(),
+                    " Disconnect ".bold(),
+                    "<D>".into()
                 ])
                 .style(Style::default().fg(self.config.colors.normal_mode)),
             ),
