@@ -431,6 +431,7 @@ impl App {
             }
             event::KeyCode::Char(c) => {
                 self.search_string.push(c);
+                self.state.select(Some(0));
                 match self.view_mode {
                     View::Countries => {
                         self.countries = self
