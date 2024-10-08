@@ -66,6 +66,7 @@ In normal mode (default):
 | `K` or `Arrow Up`   | Move selection up                            |
 | `J` or `Arrow Down` | Move selection down                          |
 | `Enter`      | Select a country/city and connect to the VPN |
+| `D`       | Disconnect from the VPN                      |
 | `i` or `/` | Enter Search mode                            |
 | `g g`        | Jump to the top of the list                  |
 | `G`          | Jump to the bottom of the list               |
