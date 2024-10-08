@@ -1,0 +1,10 @@
+[colors]
+title = "#c9c9c9"
+connected = "#50fa7b"
+disconnected = "#ff5555"
+items = "#6272a4"
+items_selected = "#ff79c6"
+normal_mode = "#f8f8f2"
+search_mode = "#f1fa8c"
+connection_output = "#f8f8f2"
+background = "#282a36"

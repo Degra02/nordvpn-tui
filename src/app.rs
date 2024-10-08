@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -13,7 +13,7 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 
-use crate::error::AppError;
+use crate::{config, error::AppError};
 
 #[derive(Debug, Default)]
 enum View {
@@ -58,11 +58,15 @@ pub struct App {
     country_index: usize,
     city_index: usize,
 
+    config: config::Config,
+
     exit: bool,
 }
 
 impl App {
-    pub fn init() -> Result<Self, AppError> {
+    pub fn init(config: Option<String>) -> Result<Self, AppError> {
+        let config = config::Config::load(config.as_deref())?;
+
         let output = std::process::Command::new("nordvpn")
             .arg("countries")
             .output()?;
@@ -93,6 +97,7 @@ impl App {
             view_mode: View::default(),
             awaiting_second_g: false,
             state,
+            config,
             exit: false,
         })
     }
@@ -169,29 +174,38 @@ impl App {
         let title_text = if self.connected {
             format!(
                 " nordvpn-tui - {} ",
-                "Connected".to_string().bold().fg(Color::Green)
+                "Connected"
+                    .to_string()
+                    .bold()
+                    .fg(self.config.colors.connected)
             )
         } else {
             format!(
                 " nordvpn-tui - {} ",
-                "Disconnected".to_string().bold().fg(Color::Red)
+                "Disconnected"
+                    .to_string()
+                    .bold()
+                    .fg(self.config.colors.disconnected)
             )
         };
 
         let title = Title::from(title_text);
 
         let instructions = match self.input_mode {
-            InputMode::Normal => Title::from(Line::from(vec![
-                " Normal | ".bold(),
-                " Select ".bold(),
-                "<Enter>".into(),
-                " Down ".bold(),
-                "<J | Up>".into(),
-                " Up ".bold(),
-                "<K | Down>".into(),
-                " Quit ".bold(),
-                "<Q | Esc>".into(),
-            ])),
+            InputMode::Normal => Title::from(
+                Line::from(vec![
+                    " Normal | ".bold(),
+                    " Select ".bold(),
+                    "<Enter>".into(),
+                    " Down ".bold(),
+                    "<J | Up>".into(),
+                    " Up ".bold(),
+                    "<K | Down>".into(),
+                    " Quit ".bold(),
+                    "<Q | Esc>".into(),
+                ])
+                .style(Style::default().fg(self.config.colors.normal_mode)),
+            ),
             InputMode::Search => {
                 let search_text = format!(" Search: {} | ", self.search_string);
                 let instructions = vec![
@@ -203,7 +217,10 @@ impl App {
                     "<Backspace>".into(),
                     " to delete ".bold(),
                 ];
-                Title::from(Line::from(instructions).style(Style::default().fg(Color::LightYellow)))
+                Title::from(
+                    Line::from(instructions)
+                        .style(Style::default().fg(self.config.colors.search_mode)),
+                )
             }
         };
 
@@ -214,6 +231,7 @@ impl App {
                     .alignment(Alignment::Center)
                     .position(Position::Bottom),
             )
+            .bg(self.config.colors.background)
             .border_set(border::THICK);
 
         match self.view_mode {
@@ -244,19 +262,19 @@ impl App {
             let style = match self.view_mode {
                 View::Countries => {
                     if i == self.country_index {
-                        Style::default().fg(Color::LightYellow)
+                        Style::default().fg(self.config.colors.items_selected)
                     } else {
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(self.config.colors.items)
                     }
                 }
                 View::Cities => {
                     if i == self.city_index {
-                        Style::default().fg(Color::LightYellow)
+                        Style::default().fg(self.config.colors.items_selected)
                     } else {
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(self.config.colors.items)
                     }
                 }
-                _ => Style::default().fg(Color::DarkGray),
+                _ => Style::default().fg(self.config.colors.items),
             };
             list.push(ListItem::new(
                 Line::from(Span::from(country.to_string()))
@@ -276,7 +294,7 @@ impl App {
     fn draw_connection(&mut self, f: &mut Frame, _area: Rect, block: Block) {
         let text = Line::from(Span::from(self.connection_output.to_string()))
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::LightYellow));
+            .style(Style::default().fg(self.config.colors.connection_output));
 
         let text = List::new(vec![ListItem::new(text)])
             .block(block)
