@@ -45,6 +45,14 @@ or alternatively
 ./target/release/nordvpn-tui
 ```
 
+## Custom Configuration
+
+The file `config.toml` contains the configuration for the tool. You can customize the following settings:
+
+- `colors`: Customize the colors of the interface.
+
+An example file is found in the repository as `config-example.toml` which you can copy to `$HOME/.config/nordvpn-tui/config.toml` and modify as needed.
+
 ## Usage
 
 Once you start `nordvpn-tui`, you will be presented with a list of countries where NordVPN servers are available. You can navigate and connect using keyboard commands.
