@@ -4,8 +4,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Default)]
 pub struct ColorsConfig {
     #[serde(deserialize_with = "crate::config::hex_to_rgb")]
-    pub title: Color,
-    #[serde(deserialize_with = "crate::config::hex_to_rgb")]
     pub connected: Color,
     #[serde(deserialize_with = "crate::config::hex_to_rgb")]
     pub disconnected: Color,

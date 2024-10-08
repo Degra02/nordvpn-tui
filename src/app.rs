@@ -1,9 +1,9 @@
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
+    style::{Modifier, Style, Stylize},
     symbols::border,
     text::{Line, Span},
     widgets::{
@@ -44,7 +44,7 @@ pub struct App {
     countries: Vec<String>,
     cities: Vec<String>,
 
-    connection_output: String,
+    connection_output: Vec<String>,
     connected: bool,
 
     search_string: String,
@@ -87,8 +87,8 @@ impl App {
 
         Ok(Self {
             countries,
-            cities: Vec::new(),
-            connection_output: String::new(),
+            cities: vec![],
+            connection_output: vec![],
             connected: connection_status,
             search_string: String::default(),
             country_index: 0,
@@ -144,14 +144,31 @@ impl App {
             .output()?;
 
         self.connected = output.status.success();
-        let command_output: Vec<String> = String::from_utf8(output.stdout)?
+        self.connection_output = String::from_utf8(output.stdout)?
             .lines()
             .map(|s| s.to_string())
             .collect();
-        self.connection_output = command_output.join("\n");
 
         if output.status.success() {
             Ok(View::Connection)
+        } else {
+            Err(AppError::Command(output.status))
+        }
+    }
+
+    fn disconnect(&mut self) -> Result<(), AppError> {
+        let output = std::process::Command::new("nordvpn")
+            .arg("disconnect")
+            .output()?;
+
+        self.connected = !output.status.success();
+        self.connection_output = String::from_utf8(output.stdout)?
+            .lines()
+            .map(|s| s.to_string())
+            .collect();
+
+        if output.status.success() {
+            Ok(())
         } else {
             Err(AppError::Command(output.status))
         }
@@ -172,24 +189,12 @@ impl App {
             .split(f.area());
 
         let title_text = if self.connected {
-            format!(
-                " nordvpn-tui - {} ",
-                "Connected"
-                    .to_string()
-                    .bold()
-                    .fg(self.config.colors.connected)
-            )
+            Line::from("Connected").style(Style::default().fg(self.config.colors.connected))
         } else {
-            format!(
-                " nordvpn-tui - {} ",
-                "Disconnected"
-                    .to_string()
-                    .bold()
-                    .fg(self.config.colors.disconnected)
-            )
+            Line::from("Disconnected").style(Style::default().fg(self.config.colors.disconnected))
         };
 
-        let title = Title::from(title_text);
+        let title = Title::from(title_text.alignment(Alignment::Center));
 
         let instructions = match self.input_mode {
             InputMode::Normal => Title::from(
@@ -198,11 +203,12 @@ impl App {
                     " Select ".bold(),
                     "<Enter>".into(),
                     " Down ".bold(),
-                    "<J | Up>".into(),
+                    "<J | Down>".into(),
                     " Up ".bold(),
-                    "<K | Down>".into(),
+                    "<K | Up>".into(),
                     " Quit ".bold(),
                     "<Q | Esc>".into(),
+                    " Disconnect <D> ".into(),
                 ])
                 .style(Style::default().fg(self.config.colors.normal_mode)),
             ),
@@ -292,19 +298,22 @@ impl App {
     }
 
     fn draw_connection(&mut self, f: &mut Frame, _area: Rect, block: Block) {
-        let text = Line::from(Span::from(self.connection_output.to_string()))
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(self.config.colors.connection_output));
+        let mut list = Vec::<ListItem>::new();
 
-        let text = List::new(vec![ListItem::new(text)])
-            .block(block)
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .add_modifier(Modifier::ITALIC),
-            );
+        for line in self.connection_output.iter() {
+            list.push(ListItem::new(
+                Line::from(Span::from(line.to_string()))
+                    .alignment(Alignment::Center)
+                    .style(Style::default().fg(self.config.colors.connection_output)),
+            ));
+        }
 
-        f.render_widget(text, f.area());
+        let list = List::new(list).block(block).highlight_style(
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .add_modifier(Modifier::ITALIC),
+        );
+        f.render_widget(list, f.area());
     }
 
     fn handle_events(&mut self) -> Result<(), AppError> {
@@ -345,6 +354,7 @@ impl App {
                     }
                 };
             }
+            event::KeyCode::Char('D') => self.disconnect()?,
             event::KeyCode::Down | event::KeyCode::Char('j') => self.increment_index(),
             event::KeyCode::Up | event::KeyCode::Char('k') => self.decrement_index(),
             event::KeyCode::Char('G') => match self.view_mode {
