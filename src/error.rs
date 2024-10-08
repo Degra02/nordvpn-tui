@@ -1,11 +1,12 @@
+#![allow(dead_code)]
 
 #[derive(Debug)]
 pub enum AppError {
     Io(std::io::Error),
     Command(std::process::ExitStatus),
     Utf8(std::string::FromUtf8Error),
-    Toml(toml::de::Error), 
-    ParseColor(ratatui::style::ParseColorError)
+    Toml(toml::de::Error),
+    ParseColor(ratatui::style::ParseColorError),
 }
 
 impl From<std::io::Error> for AppError {

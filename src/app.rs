@@ -209,7 +209,7 @@ impl App {
                     " Quit ".bold(),
                     "<Q | Esc>".into(),
                     " Disconnect ".bold(),
-                    "<D>".into()
+                    "<D>".into(),
                 ])
                 .style(Style::default().fg(self.config.colors.normal_mode)),
             ),

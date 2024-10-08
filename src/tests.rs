@@ -1,4 +1,3 @@
-
 #[test]
 fn load_config() {
     dotenv::dotenv().ok();
