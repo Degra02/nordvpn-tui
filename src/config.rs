@@ -33,7 +33,9 @@ impl Config {
         let config = if let Some(p) = path {
             std::fs::read_to_string(p)?
         } else {
-           std::env::var("CONFIG").unwrap_or("config.toml".to_string())   
+           let mut p = std::env::var("HOME").unwrap_or("./".to_string());
+           p.push_str("/.config/nordvpn-tui/config.toml");
+           std::fs::read_to_string(p)?
         };
         toml::from_str(&config).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
