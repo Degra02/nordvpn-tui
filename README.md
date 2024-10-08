@@ -2,6 +2,8 @@
 
 `nordvpn-tui` is a terminal-based user interface (TUI) tool built in Rust that provides a simple and interactive way to manage NordVPN connections. The tool allows users to browse, search, and select countries and cities for VPN connection directly from the terminal using keyboard navigation.
 
+![screenshot](./screenshot.jpg)
+
 ## Features
 
 - **Scrollable country and city list**: Navigate through a list of all available countries and cities using arrow keys.
@@ -79,32 +81,6 @@ In search mode:
 | `<char>`     | Add char to search query |
 | `Enter`      | Search with current query |
 | `Backspace`  | Delete last query char |
-
-
-## Example
-
-Here is an example of the interface:
-
-```
----------------------------------------
-          nordvpn-tui
----------------------------------------
-            Albania
-            Algeria
-            Andorra
-            Argentina
-            Armenia
-            Australia
-            Austria
-            Azerbaijan
-            Bahamas
-            Bangladesh
-            Belgium
----------------------------------------
-Normal | Select <Enter> Down <Arrow-Down> Up <Arrow-Up> Quit <Q>
-```
-
-### Connect to a VPN
 
 Once you've selected a country (or city if available), pressing `Enter` will automatically connect to the selected location using NordVPN.
 
